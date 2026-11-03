@@ -30,7 +30,24 @@ dwatch -n 0.5 'ls -l | wc -l'        # every half second, shell syntax is fine
 ```
 
 Press Ctrl-C to stop. The command runs through `sh -c` and its stdout and stderr
-are shown together.
+are shown together. Use `-x` to run it directly without a shell.
+
+### What gets highlighted
+
+Changes are shown in reverse video, compared with the previous run:
+
+- a line that is new is highlighted whole;
+- a line that changed shows only the changed characters (`used 4[2]%`), unless it
+  changed so much that a character diff would be noise, then it's highlighted whole;
+- removed lines simply disappear, as with `watch -d`.
+
+Lines are matched before characters, so one inserted line doesn't make everything
+below it look changed. `--no-diff` turns highlighting off. The header shows the
+interval, the command, the last exit code, how many runs changed the output so far,
+and the time of the last run.
+
+Escape sequences in the command's output (colours, cursor moves) are stripped for
+now. Output longer or wider than the terminal is cut off.
 
 ## Test
 

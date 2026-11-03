@@ -9,6 +9,7 @@ from collections.abc import Callable
 from typing import TextIO
 
 from . import __version__
+from .diff import highlight
 from .render import frame, header, plain
 from .runner import Run, run_command
 
@@ -35,6 +36,8 @@ def build_parser() -> argparse.ArgumentParser:
                         help="seconds to wait between runs (default: 2)")
     parser.add_argument("-x", "--exec", dest="use_shell", action="store_false",
                         help="run the command directly instead of through sh -c")
+    parser.add_argument("--no-diff", dest="diff", action="store_false",
+                        help="don't highlight changes")
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     parser.add_argument("command", nargs=argparse.REMAINDER, help="the command to watch")
     return parser
@@ -72,7 +75,11 @@ def watch(
                 changes += 1
             width, height = size()
             top = header(command_text, args.interval, current, changes, width)
-            out.write(frame(top, plain(current.lines), width, height, ansi=tty))
+            if args.diff and previous is not None:
+                body = highlight(previous.lines, current.lines)
+            else:
+                body = plain(current.lines)
+            out.write(frame(top, body, width, height, ansi=tty))
             out.flush()
             previous = current
             sleep(args.interval)

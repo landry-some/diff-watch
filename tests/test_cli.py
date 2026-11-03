@@ -78,3 +78,23 @@ def test_loop_uses_alternate_screen_on_a_terminal():
     assert text.startswith(ALT_SCREEN_ON)
     assert text.endswith(ALT_SCREEN_OFF)
     assert "hello" in text
+
+
+def test_loop_highlights_changes_since_previous_run():
+    run, _ = fake_runs("used 41%\n", "used 42%\n", "used 42%\n")
+    sleep, _ = stop_after(3)
+    out = FakeTTY()
+    watch(parse_args(["df"]), run=run, sleep=sleep, out=out, size=lambda: (40, 10))
+    frames = out.getvalue().split("\x1b[H")[1:]
+    assert "\x1b[7m" not in frames[0]  # first run: nothing to compare with
+    assert "used 4\x1b[7m2\x1b[0m%" in frames[1]
+    assert "\x1b[7m" not in frames[2]  # unchanged since the run before
+
+
+def test_no_diff_turns_highlighting_off():
+    run, _ = fake_runs("a\n", "b\n")
+    sleep, _ = stop_after(2)
+    out = FakeTTY()
+    watch(parse_args(["--no-diff", "x"]), run=run, sleep=sleep, out=out, size=lambda: (40, 10))
+    assert "\x1b[7m" not in out.getvalue()
+    assert "1 changes" in out.getvalue()
