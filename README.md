@@ -102,6 +102,11 @@ now. Output longer or wider than the terminal is cut off.
 pytest
 ```
 
+## Plans
+
+Planned work (colour pass-through, pause and scroll keys, `--ignore REGEX`,
+wide-character fixes, more tests) is listed with estimates in [ROADMAP.md](ROADMAP.md).
+
 ## License
 
 MIT, see [LICENSE](LICENSE).
