@@ -205,3 +205,19 @@ def test_main_reports_an_unwritable_log(tmp_path, capsys):
 
     assert main(["--log", str(tmp_path / "no" / "such" / "dir.log"), "true"]) == 2
     assert "cannot open log file" in capsys.readouterr().err
+
+
+def test_closed_pipe_exits_quietly():
+    import subprocess
+    import sys
+
+    proc = subprocess.Popen(
+        [sys.executable, "-m", "diff_watch.cli", "-n", "0.05", "seq 1 2000"],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    proc.stdout.readline()
+    proc.stdout.close()  # like `| head -1` exiting
+    _, err = proc.communicate(timeout=10)
+    assert proc.returncode == 141
+    assert err == b""

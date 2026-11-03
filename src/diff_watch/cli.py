@@ -1,6 +1,7 @@
 """Command-line entry point: parse options and run the watch loop."""
 
 import argparse
+import os
 import shutil
 import signal
 import sys
@@ -152,15 +153,23 @@ def _exit_on_sigterm(signum, frame):
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     signal.signal(signal.SIGTERM, _exit_on_sigterm)
-    if args.log is None:
-        return watch(args)
+    log = None
+    if args.log is not None:
+        try:
+            log = open(args.log, "a", encoding="utf-8")
+        except OSError as exc:
+            print(f"dwatch: cannot open log file {args.log}: {exc.strerror}", file=sys.stderr)
+            return 2
     try:
-        log = open(args.log, "a", encoding="utf-8")
-    except OSError as exc:
-        print(f"dwatch: cannot open log file {args.log}: {exc.strerror}", file=sys.stderr)
-        return 2
-    with log:
         return watch(args, log=log)
+    except BrokenPipeError:
+        # The reader went away (e.g. `dwatch ... | head`). Point stdout at
+        # /dev/null so Python's final flush doesn't print a second error.
+        os.dup2(os.open(os.devnull, os.O_WRONLY), sys.stdout.fileno())
+        return 141  # 128 + SIGPIPE, what a shell reports for this case
+    finally:
+        if log is not None:
+            log.close()
 
 
 if __name__ == "__main__":
