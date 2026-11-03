@@ -27,6 +27,16 @@ def positive_float(text: str) -> float:
     return value
 
 
+def positive_int(text: str) -> int:
+    try:
+        value = int(text)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"not a whole number: {text!r}") from None
+    if value <= 0:
+        raise argparse.ArgumentTypeError("must be greater than 0")
+    return value
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="dwatch",
@@ -40,6 +50,12 @@ def build_parser() -> argparse.ArgumentParser:
                         help="highlight everything that differs from the first run")
     parser.add_argument("--no-diff", dest="diff", action="store_false",
                         help="don't highlight changes")
+    parser.add_argument("-g", "--exit-on-change", action="store_true",
+                        help="stop as soon as the output changes")
+    parser.add_argument("-e", "--exit-on-error", action="store_true",
+                        help="stop when the command exits non-zero, with its exit code")
+    parser.add_argument("--count", type=positive_int, metavar="N",
+                        help="stop after N runs")
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     parser.add_argument("command", nargs=argparse.REMAINDER, help="the command to watch")
     return parser
@@ -55,6 +71,17 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     return args
 
 
+def stop_code(args: argparse.Namespace, current: Run, changed: bool, runs: int) -> int | None:
+    """The exit code to stop with after this run, or None to keep going."""
+    if args.exit_on_error and current.exit_code != 0:
+        return current.exit_code
+    if args.exit_on_change and changed:
+        return 0
+    if args.count is not None and runs >= args.count:
+        return 0
+    return None
+
+
 def watch(
     args: argparse.Namespace,
     *,
@@ -63,37 +90,51 @@ def watch(
     out: TextIO = sys.stdout,
     size: Callable[[], tuple[int, int]] = lambda: tuple(shutil.get_terminal_size()),
 ) -> int:
-    """Run the command forever (until Ctrl-C), redrawing after each run."""
+    """Run the command until Ctrl-C or an exit condition, redrawing each time.
+
+    Returns the exit code for dwatch itself. When an exit condition stops it on a
+    terminal, the last screen is printed again after leaving the alternate
+    screen, so it stays visible in the scrollback.
+    """
     command_text = " ".join(args.command)
     tty = out.isatty()
     first: Run | None = None
     previous: Run | None = None
-    changes = 0
+    changes = runs = 0
+    last_top, last_body = "", []
+    code = None
     if tty:
         out.write(ALT_SCREEN_ON)
     try:
-        while True:
+        while code is None:
             current = run(args.command, args.use_shell)
-            if previous is not None and current.output != previous.output:
-                changes += 1
+            runs += 1
+            changed = previous is not None and current.output != previous.output
+            changes += changed
             width, height = size()
-            top = header(command_text, args.interval, current, changes, width)
+            last_top = header(command_text, args.interval, current, changes, width)
             base = first if args.cumulative else previous
             if args.diff and base is not None:
-                body = highlight(base.lines, current.lines)
+                last_body = highlight(base.lines, current.lines)
             else:
-                body = plain(current.lines)
-            out.write(frame(top, body, width, height, ansi=tty))
+                last_body = plain(current.lines)
+            out.write(frame(last_top, last_body, width, height, ansi=tty))
             out.flush()
             previous = current
             first = first or current
-            sleep(args.interval)
+            code = stop_code(args, current, changed, runs)
+            if code is None:
+                sleep(args.interval)
     except KeyboardInterrupt:
         return 0
     finally:
         if tty:
             out.write(ALT_SCREEN_OFF)
             out.flush()
+    if tty:
+        out.write(frame(last_top, last_body, 0, 0, ansi=False))
+        out.flush()
+    return code
 
 
 def _exit_on_sigterm(signum, frame):

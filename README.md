@@ -32,6 +32,26 @@ dwatch -n 0.5 'ls -l | wc -l'        # every half second, shell syntax is fine
 Press Ctrl-C to stop. The command runs through `sh -c` and its stdout and stderr
 are shown together. Use `-x` to run it directly without a shell.
 
+### Stopping on its own
+
+```bash
+dwatch -g 'ls ~/Downloads'           # stop when the output changes
+dwatch -e -n 10 'curl -fsS localhost:8080/health'   # stop when the command fails
+dwatch --count 5 uptime              # stop after 5 runs
+```
+
+| Option | Stops after the run where | dwatch exits with |
+|---|---|---|
+| `-g`, `--exit-on-change` | the output differs from the run before | 0 |
+| `-e`, `--exit-on-error` | the command exits non-zero | the command's exit code |
+| `--count N` | N runs are done | 0 |
+
+When it stops this way, the last screen is printed again after the terminal is
+restored, so it stays in your scrollback. Ctrl-C always exits with 0.
+
+When stdout isn't a terminal (piped or redirected), nothing is cleared or
+highlighted: each run is printed in full, header first.
+
 ### What gets highlighted
 
 Changes are shown in reverse video, compared with the previous run:

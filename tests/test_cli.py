@@ -110,3 +110,68 @@ def test_cumulative_compares_with_the_first_run():
     assert "a \x1b[7mX\x1b[0m" in frames[1]
     assert "a \x1b[7mX\x1b[0m" in frames[2]
     assert "1 changes" in frames[2]
+
+
+def run_with_codes(*results):
+    """A run() stand-in returning (output, exit_code) pairs in order."""
+    calls = []
+
+    def run(command, use_shell):
+        calls.append(command)
+        output, code = results[len(calls) - 1]
+        return Run(output, code, datetime(2026, 1, 1))
+
+    return run, calls
+
+
+def never_stop():
+    return stop_after(10**6)
+
+
+def test_exit_on_change_stops_after_the_changed_run():
+    run, calls = run_with_codes(("a\n", 0), ("a\n", 0), ("b\n", 0), ("c\n", 0))
+    sleep, sleeps = never_stop()
+    code = watch(parse_args(["-g", "x"]), run=run, sleep=sleep, out=io.StringIO(), size=lambda: (40, 10))
+    assert code == 0
+    assert len(calls) == 3
+    assert len(sleeps) == 2  # no sleep after the last run
+
+
+def test_exit_on_error_returns_the_command_exit_code():
+    run, calls = run_with_codes(("ok\n", 0), ("boom\n", 4), ("ok\n", 0))
+    sleep, _ = never_stop()
+    code = watch(parse_args(["-e", "x"]), run=run, sleep=sleep, out=io.StringIO(), size=lambda: (40, 10))
+    assert code == 4
+    assert len(calls) == 2
+
+
+def test_errors_are_ignored_without_e():
+    run, calls = run_with_codes(("boom\n", 4), ("boom\n", 4))
+    sleep, _ = never_stop()
+    code = watch(parse_args(["--count", "2", "x"]), run=run, sleep=sleep, out=io.StringIO(), size=lambda: (40, 10))
+    assert code == 0
+    assert len(calls) == 2
+
+
+def test_count_stops_after_n_runs():
+    run, calls = run_with_codes(*[("same\n", 0)] * 5)
+    sleep, sleeps = never_stop()
+    code = watch(parse_args(["--count", "3", "x"]), run=run, sleep=sleep, out=io.StringIO(), size=lambda: (40, 10))
+    assert code == 0
+    assert len(calls) == 3 and len(sleeps) == 2
+
+
+def test_last_screen_is_printed_again_after_leaving_the_alternate_screen():
+    run, _ = run_with_codes(("a\n", 0), ("final\n", 0))
+    sleep, _ = never_stop()
+    out = FakeTTY()
+    watch(parse_args(["-g", "x"]), run=run, sleep=sleep, out=out, size=lambda: (40, 10))
+    after = out.getvalue().split(ALT_SCREEN_OFF)[1]
+    assert after.endswith("\n\nfinal\n")
+    assert "\x1b" not in after
+
+
+@pytest.mark.parametrize("value", ["0", "-1", "two"])
+def test_count_must_be_positive(value):
+    with pytest.raises(SystemExit):
+        parse_args(["--count", value, "x"])
