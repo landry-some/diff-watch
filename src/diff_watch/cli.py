@@ -10,6 +10,7 @@ from typing import TextIO
 
 from . import __version__
 from .diff import highlight
+from .log import entry
 from .render import frame, header, plain
 from .runner import Run, run_command
 
@@ -56,6 +57,8 @@ def build_parser() -> argparse.ArgumentParser:
                         help="stop when the command exits non-zero, with its exit code")
     parser.add_argument("--count", type=positive_int, metavar="N",
                         help="stop after N runs")
+    parser.add_argument("--log", metavar="FILE",
+                        help="append each change to FILE as a unified diff")
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     parser.add_argument("command", nargs=argparse.REMAINDER, help="the command to watch")
     return parser
@@ -89,6 +92,7 @@ def watch(
     sleep: Callable[[float], None] = time.sleep,
     out: TextIO = sys.stdout,
     size: Callable[[], tuple[int, int]] = lambda: tuple(shutil.get_terminal_size()),
+    log: TextIO | None = None,
 ) -> int:
     """Run the command until Ctrl-C or an exit condition, redrawing each time.
 
@@ -111,6 +115,9 @@ def watch(
             runs += 1
             changed = previous is not None and current.output != previous.output
             changes += changed
+            if log is not None and (previous is None or changed):
+                log.write(entry(command_text, previous, current))
+                log.flush()
             width, height = size()
             last_top = header(command_text, args.interval, current, changes, width)
             base = first if args.cumulative else previous
@@ -145,7 +152,15 @@ def _exit_on_sigterm(signum, frame):
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     signal.signal(signal.SIGTERM, _exit_on_sigterm)
-    return watch(args)
+    if args.log is None:
+        return watch(args)
+    try:
+        log = open(args.log, "a", encoding="utf-8")
+    except OSError as exc:
+        print(f"dwatch: cannot open log file {args.log}: {exc.strerror}", file=sys.stderr)
+        return 2
+    with log:
+        return watch(args, log=log)
 
 
 if __name__ == "__main__":

@@ -175,3 +175,33 @@ def test_last_screen_is_printed_again_after_leaving_the_alternate_screen():
 def test_count_must_be_positive(value):
     with pytest.raises(SystemExit):
         parse_args(["--count", value, "x"])
+
+
+def test_log_gets_the_first_run_and_each_change_only():
+    run, _ = run_with_codes(("a\n", 0), ("a\n", 0), ("b\n", 0))
+    sleep, _ = never_stop()
+    log = io.StringIO()
+    watch(parse_args(["--count", "3", "x"]), run=run, sleep=sleep, out=io.StringIO(), size=lambda: (40, 10), log=log)
+    entries = log.getvalue().split("\n\n")
+    assert entries[-1] == ""
+    assert len(entries) == 3  # first run, the change, trailing empty piece
+    assert "+a" in entries[0]
+    assert "-a" in entries[1] and "+b" in entries[1]
+
+
+def test_main_writes_the_log_file(tmp_path):
+    from diff_watch.cli import main
+
+    path = tmp_path / "changes.log"
+    path.write_text("older entry\n")
+    assert main(["--count", "1", "--log", str(path), "echo", "hi"]) == 0
+    text = path.read_text()
+    assert text.startswith("older entry\n===")  # appended, not overwritten
+    assert "+hi\n" in text
+
+
+def test_main_reports_an_unwritable_log(tmp_path, capsys):
+    from diff_watch.cli import main
+
+    assert main(["--log", str(tmp_path / "no" / "such" / "dir.log"), "true"]) == 2
+    assert "cannot open log file" in capsys.readouterr().err

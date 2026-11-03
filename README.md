@@ -52,6 +52,26 @@ restored, so it stays in your scrollback. Ctrl-C always exits with 0.
 When stdout isn't a terminal (piped or redirected), nothing is cleared or
 highlighted: each run is printed in full, header first.
 
+### Keeping a log of changes
+
+```bash
+dwatch --log changes.log 'ls -l build/'
+```
+
+`--log FILE` appends to FILE (it's never overwritten): first the output of the
+first run, then a unified diff each time the output changes. Each entry starts
+with a `===` line giving the date, time, exit code and command:
+
+```
+=== 2026-11-03 13:18:48 | exit 0 | echo fixed; date +%S
+--- 13:18:47
++++ 13:18:48
+@@ -1,2 +1,2 @@
+ fixed
+-47
++48
+```
+
 ### What gets highlighted
 
 Changes are shown in reverse video, compared with the previous run:
