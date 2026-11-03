@@ -36,6 +36,8 @@ def build_parser() -> argparse.ArgumentParser:
                         help="seconds to wait between runs (default: 2)")
     parser.add_argument("-x", "--exec", dest="use_shell", action="store_false",
                         help="run the command directly instead of through sh -c")
+    parser.add_argument("-c", "--cumulative", action="store_true",
+                        help="highlight everything that differs from the first run")
     parser.add_argument("--no-diff", dest="diff", action="store_false",
                         help="don't highlight changes")
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
@@ -64,6 +66,7 @@ def watch(
     """Run the command forever (until Ctrl-C), redrawing after each run."""
     command_text = " ".join(args.command)
     tty = out.isatty()
+    first: Run | None = None
     previous: Run | None = None
     changes = 0
     if tty:
@@ -75,13 +78,15 @@ def watch(
                 changes += 1
             width, height = size()
             top = header(command_text, args.interval, current, changes, width)
-            if args.diff and previous is not None:
-                body = highlight(previous.lines, current.lines)
+            base = first if args.cumulative else previous
+            if args.diff and base is not None:
+                body = highlight(base.lines, current.lines)
             else:
                 body = plain(current.lines)
             out.write(frame(top, body, width, height, ansi=tty))
             out.flush()
             previous = current
+            first = first or current
             sleep(args.interval)
     except KeyboardInterrupt:
         return 0

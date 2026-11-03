@@ -41,6 +41,13 @@ Changes are shown in reverse video, compared with the previous run:
   changed so much that a character diff would be noise, then it's highlighted whole;
 - removed lines simply disappear, as with `watch -d`.
 
+With `-c` (`--cumulative`) the comparison is with the first run instead, so
+everything that changed since you started `dwatch` stays highlighted:
+
+```bash
+dwatch -c 'ls -l ~/Downloads'
+```
+
 Lines are matched before characters, so one inserted line doesn't make everything
 below it look changed. `--no-diff` turns highlighting off. The header shows the
 interval, the command, the last exit code, how many runs changed the output so far,

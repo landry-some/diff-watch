@@ -98,3 +98,15 @@ def test_no_diff_turns_highlighting_off():
     watch(parse_args(["--no-diff", "x"]), run=run, sleep=sleep, out=out, size=lambda: (40, 10))
     assert "\x1b[7m" not in out.getvalue()
     assert "1 changes" in out.getvalue()
+
+
+def test_cumulative_compares_with_the_first_run():
+    run, _ = fake_runs("a b\n", "a X\n", "a X\n")
+    sleep, _ = stop_after(3)
+    out = FakeTTY()
+    watch(parse_args(["-c", "x"]), run=run, sleep=sleep, out=out, size=lambda: (40, 10))
+    frames = out.getvalue().split("\x1b[H")[1:]
+    # The third run equals the second, but still differs from the first.
+    assert "a \x1b[7mX\x1b[0m" in frames[1]
+    assert "a \x1b[7mX\x1b[0m" in frames[2]
+    assert "1 changes" in frames[2]
