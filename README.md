@@ -97,6 +97,19 @@ Escape sequences in the command's output (colours, cursor moves) are stripped fo
 now, and tabs are expanded to 8-column stops so columns line up. Output longer or
 wider than the terminal is cut off.
 
+### Ignoring noisy parts
+
+```bash
+dwatch --ignore '\d\d:\d\d:\d\d' 'ps -o pid,stat,time,cmd'
+dwatch --ignore 'pid=\d+' --ignore 'took \d+ms' ./status.sh
+```
+
+`--ignore REGEX` (Python regex syntax, repeatable) leaves the text it matches
+out when runs are compared, line by line. A run where only ignored parts moved
+doesn't count as a change: it's not highlighted, not counted in the header, not
+logged and doesn't stop `-g`. The ignored text is still shown, just never
+highlighted.
+
 ## Test
 
 ```bash
@@ -105,8 +118,8 @@ pytest
 
 ## Plans
 
-Planned work (colour pass-through, pause and scroll keys, `--ignore REGEX`,
-wide-character fixes, more tests) is listed with estimates in [ROADMAP.md](ROADMAP.md).
+Planned work (colour pass-through, pause and scroll keys, wide-character fixes,
+more tests) is listed with estimates in [ROADMAP.md](ROADMAP.md).
 
 ## License
 

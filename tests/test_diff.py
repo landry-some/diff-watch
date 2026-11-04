@@ -1,4 +1,4 @@
-from diff_watch.diff import diff_line, highlight
+from diff_watch.diff import diff_line, highlight, mask
 
 
 def test_unchanged_line_has_no_highlight():
@@ -49,3 +49,31 @@ def test_removed_lines_are_not_shown():
 
 def test_first_output_against_nothing_is_all_new():
     assert highlight([], ["a", "b"]) == [[("a", True)], [("b", True)]]
+
+
+def test_mask_removes_matches_line_by_line():
+    import re
+
+    assert mask("pid 12 up\npid 345 up", re.compile(r"\d+")) == "pid  up\npid  up"
+    assert mask("a \n b", re.compile(r"\s+")) == "a\nb"  # never joins lines
+    assert mask("same", None) == "same"
+
+
+def test_ignored_parts_do_not_count_as_changes():
+    import re
+
+    ignore = re.compile(r"\d\d:\d\d")
+    assert highlight(["at 10:00 ok"], ["at 10:01 ok"], ignore) == [[("at 10:01 ok", False)]]
+
+
+def test_ignored_parts_are_never_highlighted():
+    import re
+
+    ignore = re.compile(r"\d\d:\d\d")
+    assert highlight(["at 10:00 ok"], ["at 10:01 up"], ignore) == [
+        [("at 10:01 ", False), ("up", True)]
+    ]
+    # A new line is highlighted whole, except for the ignored part.
+    assert highlight([], ["new 10:02 x"], ignore) == [
+        [("new ", True), ("10:02", False), (" x", True)]
+    ]

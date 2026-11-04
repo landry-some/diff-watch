@@ -221,3 +221,28 @@ def test_closed_pipe_exits_quietly():
     _, err = proc.communicate(timeout=10)
     assert proc.returncode == 141
     assert err == b""
+
+
+def test_ignore_leaves_matches_out_of_the_comparison():
+    run, calls = run_with_codes(("t=1 ok\n", 0), ("t=2 ok\n", 0), ("t=3 bad\n", 0), ("t=4 x\n", 0))
+    sleep, _ = never_stop()
+    out = FakeTTY()
+    code = watch(parse_args(["-g", "--ignore", r"t=\d+", "x"]), run=run, sleep=sleep, out=out, size=lambda: (40, 10))
+    assert code == 0
+    assert len(calls) == 3  # the t=2 run didn't count as a change
+    frames = out.getvalue().split("\x1b[H")[1:]
+    assert "\x1b[7m" not in frames[1]
+    assert "\nt=3" in frames[2] and "bad\x1b[0m" in frames[2]  # t=3 itself not highlighted
+
+
+def test_ignore_can_be_given_more_than_once():
+    args = parse_args(["--ignore", r"\d+", "--ignore", "pid", "x"])
+    assert args.ignore.sub("", "pid 42 a") == "  a"
+    assert parse_args(["x"]).ignore is None
+
+
+def test_ignore_rejects_a_bad_regex(capsys):
+    with pytest.raises(SystemExit) as exc:
+        parse_args(["--ignore", "(", "x"])
+    assert exc.value.code == 2
+    assert "bad regex" in capsys.readouterr().err

@@ -2,6 +2,7 @@
 
 import argparse
 import os
+import re
 import shutil
 import signal
 import sys
@@ -10,7 +11,7 @@ from collections.abc import Callable
 from typing import TextIO
 
 from . import __version__
-from .diff import highlight
+from .diff import highlight, mask
 from .log import entry
 from .render import frame, header, plain
 from .runner import Run, run_command
@@ -39,6 +40,13 @@ def positive_int(text: str) -> int:
     return value
 
 
+def regex(text: str) -> re.Pattern[str]:
+    try:
+        return re.compile(text)
+    except re.error as exc:
+        raise argparse.ArgumentTypeError(f"bad regex {text!r}: {exc}") from None
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="dwatch",
@@ -58,6 +66,8 @@ def build_parser() -> argparse.ArgumentParser:
                         help="stop when the command exits non-zero, with its exit code")
     parser.add_argument("--count", type=positive_int, metavar="N",
                         help="stop after N runs")
+    parser.add_argument("--ignore", type=regex, action="append", default=[], metavar="REGEX",
+                        help="leave out text matching REGEX when comparing runs (repeatable)")
     parser.add_argument("--log", metavar="FILE",
                         help="append each change to FILE as a unified diff")
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
@@ -72,6 +82,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         args.command = args.command[1:]
     if not args.command:
         parser.error("no command given")
+    args.ignore = re.compile("|".join(f"(?:{p.pattern})" for p in args.ignore)) if args.ignore else None
     return args
 
 
@@ -114,7 +125,9 @@ def watch(
         while code is None:
             current = run(args.command, args.use_shell)
             runs += 1
-            changed = previous is not None and current.output != previous.output
+            changed = previous is not None and (
+                mask(current.output, args.ignore) != mask(previous.output, args.ignore)
+            )
             changes += changed
             if log is not None and (previous is None or changed):
                 log.write(entry(command_text, previous, current))
@@ -123,7 +136,7 @@ def watch(
             last_top = header(command_text, args.interval, current, changes, width)
             base = first if args.cumulative else previous
             if args.diff and base is not None:
-                last_body = highlight(base.lines, current.lines)
+                last_body = highlight(base.lines, current.lines, args.ignore)
             else:
                 last_body = plain(current.lines)
             out.write(frame(last_top, last_body, width, height, ansi=tty))

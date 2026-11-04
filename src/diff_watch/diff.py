@@ -1,5 +1,6 @@
 """Mark which parts of the new output differ from the old output."""
 
+import re
 from difflib import SequenceMatcher
 
 from .render import StyledLine
@@ -35,21 +36,47 @@ def diff_line(old: str, new: str) -> StyledLine:
     return _merge(segments)
 
 
-def highlight(old: list[str], new: list[str]) -> list[StyledLine]:
+def mask(text: str, ignore: re.Pattern[str] | None) -> str:
+    """Remove the parts of `text` that `ignore` matches, for comparing.
+
+    The pattern is applied line by line, the same way highlighting sees it.
+    """
+    if ignore is None:
+        return text
+    return "\n".join(ignore.sub("", line) for line in text.split("\n"))
+
+
+def _unmark(line: StyledLine, ignore: re.Pattern[str]) -> StyledLine:
+    """Clear the highlight on the parts of a line that `ignore` matches."""
+    text = "".join(piece for piece, _ in line)
+    flags = [hl for piece, hl in line for _ in piece]
+    for match in ignore.finditer(text):
+        flags[match.start() : match.end()] = [False] * (match.end() - match.start())
+    return _merge([(char, hl) for char, hl in zip(text, flags)])
+
+
+def highlight(old: list[str], new: list[str], ignore: re.Pattern[str] | None = None) -> list[StyledLine]:
     """Style every line of `new`: unchanged, partly changed or new.
 
     Lines are matched first, so an inserted line doesn't make every line
     below it look changed. Lines replaced one-for-one get a character diff.
     Removed lines are not shown, as in `watch -d`.
+
+    With `ignore`, lines are matched with the parts it matches removed, and
+    those parts are never highlighted.
     """
     styled: list[StyledLine] = []
-    matcher = SequenceMatcher(None, old, new, autojunk=False)
+    matcher = SequenceMatcher(
+        None, [mask(line, ignore) for line in old], [mask(line, ignore) for line in new], autojunk=False
+    )
     for tag, i1, i2, j1, j2 in matcher.get_opcodes():
         for k, line in enumerate(new[j1:j2]):
             if tag == "equal":
                 styled.append(_merge([(line, False)]))
-            elif tag == "replace" and i1 + k < i2:
-                styled.append(diff_line(old[i1 + k], line))
+                continue
+            if tag == "replace" and i1 + k < i2:
+                result = diff_line(old[i1 + k], line)
             else:
-                styled.append(_merge([(line, True)]))
+                result = _merge([(line, True)])
+            styled.append(_unmark(result, ignore) if ignore else result)
     return styled

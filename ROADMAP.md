@@ -9,7 +9,7 @@ What comes after v0.1, with rough estimates. Total: about 32.5 hours.
 - [ ] Scroll through output longer than the terminal (arrow keys / PgUp / PgDn) (4h)
 - [ ] `--precise`: keep a fixed start-to-start interval instead of sleeping after each run (1h)
 - [ ] `--beep` and `--notify`: bell or desktop notification when the output changes (1.5h)
-- [ ] `--ignore REGEX`: mask noisy parts (timestamps, PIDs) before diffing (2h)
+- [x] `--ignore REGEX`: mask noisy parts (timestamps, PIDs) before diffing (2h)
 
 ## Bugs and edge cases
 
