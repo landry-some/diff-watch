@@ -14,7 +14,7 @@ What comes after v0.1, with rough estimates. Total: about 32.5 hours.
 ## Bugs and edge cases
 
 - [ ] Wide characters (CJK, emoji) break width clipping and highlight alignment (2h)
-- [ ] Expand tabs before diffing and clipping so columns line up (1h)
+- [x] Expand tabs before diffing and clipping so columns line up (1h)
 - [ ] Redraw immediately on terminal resize (SIGWINCH) (1h)
 - [ ] `--timeout SECONDS` for commands that hang, shown as a status in the header (1.5h)
 

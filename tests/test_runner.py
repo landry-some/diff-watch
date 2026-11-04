@@ -24,6 +24,15 @@ def test_clean_strips_escapes_and_carriage_returns():
     assert clean(raw) == "red\nokdone"
 
 
+def test_clean_expands_tabs_to_8_column_stops():
+    assert clean("a\tb\nabcdefgh\tc\n\td") == "a       b\nabcdefgh        c\n        d"
+
+
+def test_clean_expands_tabs_after_stripping_escapes():
+    # The colour codes take no columns, so the tab still stops at column 8.
+    assert clean("\x1b[1mab\x1b[0m\tc") == "ab      c"
+
+
 def test_lines_ignores_final_newline():
     from datetime import datetime
 

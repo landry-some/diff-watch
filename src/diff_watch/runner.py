@@ -24,8 +24,14 @@ class Run:
 
 
 def clean(text: str) -> str:
-    """Drop escape sequences and carriage returns from command output."""
-    return _ANSI.sub("", text).replace("\r\n", "\n").replace("\r", "")
+    """Drop escape sequences and carriage returns, and expand tabs to spaces.
+
+    Tabs are expanded to 8-column stops so a highlighted or clipped line keeps
+    its columns lined up: one tab is one character to the diff but several on
+    screen.
+    """
+    text = _ANSI.sub("", text).replace("\r\n", "\n").replace("\r", "")
+    return text.expandtabs(8)
 
 
 def run_command(command: list[str], use_shell: bool = True) -> Run:

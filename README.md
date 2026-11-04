@@ -94,7 +94,8 @@ interval, the command, the last exit code, how many runs changed the output so f
 and the time of the last run.
 
 Escape sequences in the command's output (colours, cursor moves) are stripped for
-now. Output longer or wider than the terminal is cut off.
+now, and tabs are expanded to 8-column stops so columns line up. Output longer or
+wider than the terminal is cut off.
 
 ## Test
 
