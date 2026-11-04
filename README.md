@@ -32,6 +32,15 @@ dwatch -n 0.5 'ls -l | wc -l'        # every half second, shell syntax is fine
 Press Ctrl-C to stop. The command runs through `sh -c` and its stdout and stderr
 are shown together. Use `-x` to run it directly without a shell.
 
+For commands that can hang, `--timeout SECONDS` kills a run that takes longer
+(along with anything it started). What it printed so far is kept, the header shows
+`timed out` instead of the exit code, and the run counts as exit code 124, like
+`timeout(1)`, so `-e` stops on it.
+
+```bash
+dwatch --timeout 5 'curl -sS http://flaky.local/status'
+```
+
 ### Stopping on its own
 
 ```bash

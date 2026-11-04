@@ -40,3 +40,23 @@ def test_lines_ignores_final_newline():
     assert Run("a\nb\n", 0, now).lines == ["a", "b"]
     assert Run("a\n\n", 0, now).lines == ["a", ""]
     assert Run("", 0, now).lines == []
+
+
+def test_timeout_kills_the_command_and_keeps_its_output():
+    import time
+
+    start = time.monotonic()
+    # The shell's child holds the pipe open too, so this only returns quickly
+    # if the whole process group is killed.
+    run = run_command(["echo started; sleep 30; echo never"], timeout=0.3)
+    assert time.monotonic() - start < 5
+    assert run.timed_out
+    assert run.exit_code == 124
+    assert run.output == "started\n"
+    assert run.status == "timed out"
+
+
+def test_a_run_within_the_timeout_is_normal():
+    run = run_command(["echo hi; exit 2"], timeout=10)
+    assert not run.timed_out
+    assert (run.output, run.exit_code, run.status) == ("hi\n", 2, "exit 2")

@@ -48,3 +48,8 @@ def test_frame_clips_to_terminal_size():
 def test_frame_without_ansi_is_plain_and_complete():
     body = [[("a" * 50, False)], [("b", True)]]
     assert frame("top", body, 10, 3, ansi=False) == "top\n\n" + "a" * 50 + "\nb\n"
+
+
+def test_header_shows_a_timed_out_run():
+    run = Run("", 124, datetime(2026, 11, 3, 9, 5, 7), timed_out=True)
+    assert header("sleep 9", 2.0, run, 0, 60).endswith("timed out | 0 changes | 09:05:07")

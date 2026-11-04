@@ -54,6 +54,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("-n", "--interval", type=positive_float, default=2.0, metavar="SECONDS",
                         help="seconds to wait between runs (default: 2)")
+    parser.add_argument("--timeout", type=positive_float, metavar="SECONDS",
+                        help="kill the command if a run takes longer than SECONDS")
     parser.add_argument("-x", "--exec", dest="use_shell", action="store_false",
                         help="run the command directly instead of through sh -c")
     parser.add_argument("-c", "--cumulative", action="store_true",
@@ -100,7 +102,7 @@ def stop_code(args: argparse.Namespace, current: Run, changed: bool, runs: int) 
 def watch(
     args: argparse.Namespace,
     *,
-    run: Callable[[list[str], bool], Run] = run_command,
+    run: Callable[..., Run] = run_command,
     sleep: Callable[[float], None] = time.sleep,
     out: TextIO = sys.stdout,
     size: Callable[[], tuple[int, int]] = lambda: tuple(shutil.get_terminal_size()),
@@ -123,7 +125,7 @@ def watch(
         out.write(ALT_SCREEN_ON)
     try:
         while code is None:
-            current = run(args.command, args.use_shell)
+            current = run(args.command, args.use_shell, timeout=args.timeout)
             runs += 1
             changed = previous is not None and (
                 mask(current.output, args.ignore) != mask(previous.output, args.ignore)

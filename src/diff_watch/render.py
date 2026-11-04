@@ -23,7 +23,7 @@ def header(command: str, interval: float, run: Run, changes: int, width: int) ->
     The command is cut short first if the two sides don't fit together.
     """
     left = f"Every {interval:g}s: {command}"
-    right = f"exit {run.exit_code} | {changes} changes | {run.started:%H:%M:%S}"
+    right = f"{run.status} | {changes} changes | {run.started:%H:%M:%S}"
     room = width - len(right) - 1
     if room < 1:
         return right[:width]

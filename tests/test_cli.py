@@ -16,7 +16,7 @@ def fake_runs(*outputs):
     """A run() stand-in that returns the given outputs in order."""
     calls = []
 
-    def run(command, use_shell):
+    def run(command, use_shell, timeout=None):
         calls.append((command, use_shell))
         return Run(outputs[len(calls) - 1], 0, datetime(2026, 1, 1))
 
@@ -116,7 +116,7 @@ def run_with_codes(*results):
     """A run() stand-in returning (output, exit_code) pairs in order."""
     calls = []
 
-    def run(command, use_shell):
+    def run(command, use_shell, timeout=None):
         calls.append(command)
         output, code = results[len(calls) - 1]
         return Run(output, code, datetime(2026, 1, 1))
@@ -246,3 +246,22 @@ def test_ignore_rejects_a_bad_regex(capsys):
         parse_args(["--ignore", "(", "x"])
     assert exc.value.code == 2
     assert "bad regex" in capsys.readouterr().err
+
+
+def test_timeout_is_passed_to_each_run():
+    seen = []
+
+    def run(command, use_shell, timeout=None):
+        seen.append(timeout)
+        return Run("x\n", 0, datetime(2026, 1, 1))
+
+    sleep, _ = never_stop()
+    watch(parse_args(["--count", "2", "--timeout", "1.5", "x"]), run=run, sleep=sleep, out=io.StringIO(), size=lambda: (40, 10))
+    assert seen == [1.5, 1.5]
+    assert parse_args(["x"]).timeout is None
+
+
+def test_main_with_e_stops_on_a_timeout():
+    from diff_watch.cli import main
+
+    assert main(["-e", "--timeout", "0.2", "sleep 30"]) == 124

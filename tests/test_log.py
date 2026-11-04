@@ -37,3 +37,8 @@ def test_later_entries_are_unified_diffs():
 
 def test_empty_first_output_logs_only_the_title():
     assert entry("true", None, Run("", 0, T1)) == "=== 2026-11-03 09:00:00 | exit 0 | true\n\n"
+
+
+def test_entry_title_says_when_a_run_timed_out():
+    text = entry("slow", None, Run("", 124, T1, timed_out=True))
+    assert text.startswith("=== 2026-11-03 09:00:00 | timed out | slow\n")
