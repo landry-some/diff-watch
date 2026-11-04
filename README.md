@@ -32,6 +32,11 @@ dwatch -n 0.5 'ls -l | wc -l'        # every half second, shell syntax is fine
 Press Ctrl-C to stop. The command runs through `sh -c` and its stdout and stderr
 are shown together. Use `-x` to run it directly without a shell.
 
+The interval is the pause after each run, so a command that takes a second runs
+every 3 seconds with the default `-n 2`. With `-p` (`--precise`) runs start every
+`-n` seconds instead, counting the time the command takes; one that takes longer
+than the interval is followed straight away.
+
 For commands that can hang, `--timeout SECONDS` kills a run that takes longer
 (along with anything it started). What it printed so far is kept, the header shows
 `timed out` instead of the exit code, and the run counts as exit code 124, like

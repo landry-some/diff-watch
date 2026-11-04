@@ -54,6 +54,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("-n", "--interval", type=positive_float, default=2.0, metavar="SECONDS",
                         help="seconds to wait between runs (default: 2)")
+    parser.add_argument("-p", "--precise", action="store_true",
+                        help="start a run every SECONDS, counting the time the command takes")
     parser.add_argument("--timeout", type=positive_float, metavar="SECONDS",
                         help="kill the command if a run takes longer than SECONDS")
     parser.add_argument("-x", "--exec", dest="use_shell", action="store_false",
@@ -107,6 +109,7 @@ def watch(
     out: TextIO = sys.stdout,
     size: Callable[[], tuple[int, int]] = lambda: tuple(shutil.get_terminal_size()),
     log: TextIO | None = None,
+    clock: Callable[[], float] = time.monotonic,
 ) -> int:
     """Run the command until Ctrl-C or an exit condition, redrawing each time.
 
@@ -125,6 +128,7 @@ def watch(
         out.write(ALT_SCREEN_ON)
     try:
         while code is None:
+            started = clock()
             current = run(args.command, args.use_shell, timeout=args.timeout)
             runs += 1
             changed = previous is not None and (
@@ -147,7 +151,11 @@ def watch(
             first = first or current
             code = stop_code(args, current, changed, runs)
             if code is None:
-                sleep(args.interval)
+                if args.precise:
+                    # A run that took longer than the interval is followed at once.
+                    sleep(max(args.interval - (clock() - started), 0))
+                else:
+                    sleep(args.interval)
     except KeyboardInterrupt:
         return 0
     finally:

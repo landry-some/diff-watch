@@ -265,3 +265,28 @@ def test_main_with_e_stops_on_a_timeout():
     from diff_watch.cli import main
 
     assert main(["-e", "--timeout", "0.2", "sleep 30"]) == 124
+
+
+def fake_clock(*times):
+    """A clock() stand-in returning the given times in order."""
+    values = iter(times)
+    return lambda: next(values)
+
+
+def test_precise_keeps_a_fixed_start_to_start_interval():
+    run, _ = run_with_codes(*[("x\n", 0)] * 3)
+    sleep, sleeps = never_stop()
+    # Runs take 0.5s, then 1.5s (longer than the interval), then the last one isn't timed.
+    clock = fake_clock(10.0, 10.5, 11.0, 12.5, 13.0)
+    watch(parse_args(["-p", "-n", "1", "--count", "3", "x"]), run=run, sleep=sleep, out=io.StringIO(),
+          size=lambda: (40, 10), clock=clock)
+    assert sleeps == [0.5, 0]
+
+
+def test_without_precise_the_full_interval_is_slept():
+    run, _ = run_with_codes(*[("x\n", 0)] * 2)
+    sleep, sleeps = never_stop()
+    clock = fake_clock(10.0, 15.0, 16.0)
+    watch(parse_args(["-n", "1", "--count", "2", "x"]), run=run, sleep=sleep, out=io.StringIO(),
+          size=lambda: (40, 10), clock=clock)
+    assert sleeps == [1]

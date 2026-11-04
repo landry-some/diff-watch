@@ -7,7 +7,7 @@ What comes after v0.1, with rough estimates. Total: about 32.5 hours.
 - [ ] Pass the command's own ANSI colours through instead of stripping them, and diff on the visible text (5h)
 - [ ] Pause/freeze key (`space`) and quit key (`q`) without Ctrl-C (2h)
 - [ ] Scroll through output longer than the terminal (arrow keys / PgUp / PgDn) (4h)
-- [ ] `--precise`: keep a fixed start-to-start interval instead of sleeping after each run (1h)
+- [x] `--precise`: keep a fixed start-to-start interval instead of sleeping after each run (1h)
 - [ ] `--beep` and `--notify`: bell or desktop notification when the output changes (1.5h)
 - [x] `--ignore REGEX`: mask noisy parts (timestamps, PIDs) before diffing (2h)
 
